@@ -14,6 +14,7 @@ local Window = Library:CreateWindow({
 local Tabs = {
     Farm = Window:AddTab('Farm'),
     Self = Window:AddTab('Self'),
+    Gun = Window:AddTab('Gun'),
     Visuals = Window:AddTab('Visuals'),
     ['UI Settings'] = Window:AddTab('UI Settings'),
 }
@@ -37,6 +38,18 @@ SelfGroup:AddToggle('InfStrength',{
     Default=false
 })
 
+SelfGroup:AddToggle('InfSpeed',{
+    Text='Inf Speed',
+    Default=false
+})
+
+local GunGroup = Tabs.Gun:AddLeftGroupbox('Gun Mods')
+
+GunGroup:AddToggle('NoRecoilSpread',{
+    Text='No Recoil / No Spread',
+    Default=false
+})
+
 local VisualGroup = Tabs.Visuals:AddLeftGroupbox('Visual')
 
 VisualGroup:AddToggle('NittyESP',{
@@ -50,24 +63,77 @@ VisualGroup:AddToggle('InstantPrompts',{
 })
 
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 
+-- NO RECOIL / NO SPREAD LOOP
 task.spawn(function()
+
     while true do
-        task.wait(0.1)
+        task.wait(1)
+
+        if not Toggles.NoRecoilSpread.Value then
+            continue
+        end
+
+        for _,v in pairs(getgc(true)) do
+            if type(v) == "table" then
+                
+                if rawget(v,"Spread") then
+                    if type(v.Spread) == "table" then
+                        for k in pairs(v.Spread) do
+                            v.Spread[k] = 0
+                        end
+                    else
+                        v.Spread = 0
+                    end
+                end
+                
+                if rawget(v,"Recoil") then
+                    if type(v.Recoil) == "table" then
+                        for k in pairs(v.Recoil) do
+                            v.Recoil[k] = 0
+                        end
+                    else
+                        v.Recoil = 0
+                    end
+                end
+
+            end
+        end
+
+    end
+
+end)
+
+RunService.Heartbeat:Connect(function()
+
+    local attributes = player:FindFirstChild("Attributes")
+    if attributes then
 
         if Toggles.InfStamina.Value then
-            if player:FindFirstChild("Attributes") and player.Attributes:FindFirstChild("Stamina") then
-                player.Attributes.Stamina.Value = 50
+            local stamina = attributes:FindFirstChild("Stamina")
+            if stamina and stamina.Value ~= 50 then
+                stamina.Value = 50
             end
         end
 
         if Toggles.InfStrength.Value then
-            if player:FindFirstChild("Attributes") and player.Attributes:FindFirstChild("Strength") then
-                player.Attributes.Strength.Value = 11
+            local strength = attributes:FindFirstChild("Strength")
+            if strength and strength.Value ~= 11 then
+                strength.Value = 11
             end
         end
+
+        if Toggles.InfSpeed.Value then
+            local speed = attributes:FindFirstChild("Speed")
+            if speed and speed.Value ~= 10 then
+                speed.Value = 10
+            end
+        end
+
     end
+
 end)
 
 local function setInstantPrompt(prompt)
@@ -77,31 +143,40 @@ local function setInstantPrompt(prompt)
 end
 
 Toggles.InstantPrompts:OnChanged(function()
+
     if Toggles.InstantPrompts.Value then
+
         for _,v in ipairs(workspace:GetDescendants()) do
             setInstantPrompt(v)
         end
+
         workspace.DescendantAdded:Connect(function(v)
             setInstantPrompt(v)
         end)
+
     end
+
 end)
 
 local Nittys = workspace:WaitForChild("Nittys")
 local OUTLINE_COLOR = Color3.fromRGB(255,255,0)
 
 local function removeHighlight(model)
-    local h = model:FindFirstChildOfClass("Highlight")
-    if h then h:Destroy() end
+
+    local highlight = model:FindFirstChildOfClass("Highlight")
+    if highlight then highlight:Destroy() end
 
     local hrp = model:FindFirstChild("HumanoidRootPart")
+
     if hrp then
         local tag = hrp:FindFirstChild("NittyTag")
         if tag then tag:Destroy() end
     end
+
 end
 
 local function applyHighlight(model)
+
     if not model:IsA("Model") then return end
     if not Toggles.NittyESP.Value then return end
 
@@ -117,6 +192,7 @@ local function applyHighlight(model)
     local hrp = model:FindFirstChild("HumanoidRootPart")
 
     if hrp then
+
         local billboard = Instance.new("BillboardGui")
         billboard.Name = "NittyTag"
         billboard.Size = UDim2.new(0,100,0,40)
@@ -132,36 +208,39 @@ local function applyHighlight(model)
         label.TextScaled = true
         label.Font = Enum.Font.GothamBold
         label.Parent = billboard
+
     end
+
 end
 
 Toggles.NittyESP:OnChanged(function()
+
     if Toggles.NittyESP.Value then
+
         for _,model in ipairs(Nittys:GetChildren()) do
             applyHighlight(model)
         end
+
     else
+
         for _,model in ipairs(Nittys:GetChildren()) do
             removeHighlight(model)
         end
+
     end
+
 end)
 
 Nittys.ChildAdded:Connect(function(model)
+
     if Toggles.NittyESP.Value then
         applyHighlight(model)
     end
+
 end)
 
-local function setInvisible(character,bool)
-    for _,part in ipairs(character:GetDescendants()) do
-        if part:IsA("BasePart") or part:IsA("Decal") then
-            part.Transparency = bool and 1 or 0
-        end
-    end
-end
-
 local function chopCarcass(rootPart)
+
     local carcass = workspace.ButchersJob.Step2:GetChildren()[2].Carcass
     local prompt = carcass:FindFirstChildWhichIsA("ProximityPrompt")
 
@@ -172,9 +251,11 @@ local function chopCarcass(rootPart)
         fireproximityprompt(prompt)
         task.wait(3)
     end
+
 end
 
 local function chopBoard(rootPart)
+
     local meat = workspace.ButchersJob.Step3.PlaceChopMeat.Meat
     local prompt = meat:FindFirstChildWhichIsA("ProximityPrompt")
 
@@ -185,9 +266,11 @@ local function chopBoard(rootPart)
         fireproximityprompt(prompt)
         task.wait(3)
     end
+
 end
 
 local function sellMeat(rootPart)
+
     local sellPart = workspace.ButchersJob.SellMeat.MeatSell
     local sellPrompt = sellPart:FindFirstChildWhichIsA("ProximityPrompt")
 
@@ -198,23 +281,27 @@ local function sellMeat(rootPart)
         fireproximityprompt(sellPrompt)
         task.wait(3)
     end
+
 end
 
 task.spawn(function()
+
     while true do
         task.wait()
 
-        if not Toggles.AutoFarm.Value then continue end
+        if not Toggles.AutoFarm.Value then
+            continue
+        end
 
         local character = player.Character or player.CharacterAdded:Wait()
         local rootPart = character:WaitForChild("HumanoidRootPart")
 
-        setInvisible(character,true)
-
         chopCarcass(rootPart)
         chopBoard(rootPart)
         sellMeat(rootPart)
+
     end
+
 end)
 
 local MenuGroup = Tabs['UI Settings']:AddLeftGroupbox('Menu')
@@ -237,8 +324,8 @@ SaveManager:SetLibrary(Library)
 SaveManager:IgnoreThemeSettings()
 SaveManager:SetIgnoreIndexes({'MenuKeybind'})
 
-ThemeManager:SetFolder('MyScriptHub')
-SaveManager:SetFolder('MyScriptHub/specific-game')
+ThemeManager:SetFolder('Digz')
+SaveManager:SetFolder('Digz/Trap N Bang')
 
 SaveManager:BuildConfigSection(Tabs['UI Settings'])
 ThemeManager:ApplyToTab(Tabs['UI Settings'])
